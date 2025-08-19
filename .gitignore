@@ -183,3 +183,7 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+# allow tiny data samples for demo
+!data/sample/
+!data/sample/**
