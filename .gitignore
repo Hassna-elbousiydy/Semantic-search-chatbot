@@ -191,7 +191,8 @@ cython_debug/
 data/raw/
 data/processed/
 models/
-results/
+results/*
+!results/baseline_evaluation.txt
 
 # Python
 __pycache__/
