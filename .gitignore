@@ -187,3 +187,25 @@ cython_debug/
 # allow tiny data samples for demo
 !data/sample/
 !data/sample/**
+# Portfolio project generated data
+data/raw/
+data/processed/
+models/
+results/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Environment variables / secrets
+.env
+*.env
+
+# OS
+.DS_Store
+Thumbs.db
