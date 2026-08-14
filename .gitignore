@@ -209,3 +209,6 @@ venv/
 # OS
 .DS_Store
 Thumbs.db
+
+# Executed notebooks
+*_executed.ipynb
