@@ -10,27 +10,25 @@ class AnswerGenerator:
         print(f"Loading generation model: {model_name}")
 
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-
         self.model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
 
     def generate(self, question: str, contexts: list[str]) -> str:
 
-        context_text = "\n\n".join(contexts)
+        # Keep only the most relevant context for this lightweight model.
+        context = contexts[0] if contexts else ""
 
-        prompt = f"""
-Answer the question using only the context below.
+        # Limit context size to prevent prompt truncation.
+        context = context[:1400]
 
-If the answer cannot be found in the context, say:
-"I don't know based on the provided context."
-
-Context:
-{context_text}
-
-Question:
-{question}
-
-Answer:
-"""
+        prompt = (
+            f"Question: {question}\n\n"
+            f"Context: {context}\n\n"
+            "Instruction: Answer the question using only the context. "
+            "Give a short and precise answer. "
+            "If the context does not contain the answer, say "
+            "\"I don't know based on the provided context.\"\n\n"
+            "Answer:"
+        )
 
         inputs = self.tokenizer(
             prompt,
@@ -41,8 +39,10 @@ Answer:
 
         outputs = self.model.generate(
             **inputs,
-            max_new_tokens=100,
-            do_sample=False
+            max_new_tokens=50,
+            do_sample=False,
+            num_beams=4,
+            early_stopping=True
         )
 
         answer = self.tokenizer.decode(
