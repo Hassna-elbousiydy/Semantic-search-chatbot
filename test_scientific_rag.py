@@ -21,7 +21,7 @@ rag = RAGSystem(
     relevance_threshold=0.30,
     use_reranker=True,
     reranker_confidence_threshold=0.0,
-    candidate_pool=10,
+    candidate_pool=5,
 )
 
 

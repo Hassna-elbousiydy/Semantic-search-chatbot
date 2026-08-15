@@ -1,67 +1,61 @@
-import json
 from pathlib import Path
 
 from src.preprocessing import load_jsonl
 from src.retrieval import SemanticRetriever
 from src.reranker import CrossEncoderReranker
+from src.evaluation import (
+    load_jsonl_records,
+    item_is_relevant,
+    first_relevant_rank,
+)
 
 
 CORPUS_PATH = Path(
-    "data/scientific/processed/scientific_chunks.jsonl"
+    "data/scientific/processed/"
+    "scientific_chunks.jsonl"
 )
 
 EVAL_PATH = Path(
-    "data/evaluation/scientific_eval.jsonl"
+    "data/evaluation/"
+    "scientific_eval.jsonl"
 )
 
 FAISS_RELEVANCE_THRESHOLD = 0.30
 RERANKER_CONFIDENCE_THRESHOLD = 0.0
-CANDIDATE_POOL = 10
+
+# Selected experimentally from candidate-pool
+# ablation: 5 / 10 / 20 / 30.
+CANDIDATE_POOL = 5
 
 
-def load_eval(path):
-    rows = []
-
-    with path.open("r", encoding="utf-8") as f:
-        for line in f:
-            if line.strip():
-                rows.append(json.loads(line))
-
-    return rows
-
-
-def item_is_relevant(item, example):
-
-    if (
-        item.get("source_file")
-        != example.get("expected_source_file")
-    ):
-        return False
-
-    for relevant in example["relevant_chunks"]:
-
-        if (
-            item.get("page") == relevant["page"]
-            and item.get("chunk_id")
-            == relevant["chunk_id"]
-        ):
-            return True
-
-    return False
-
-
-corpus = load_jsonl(CORPUS_PATH)
-evaluation = load_eval(EVAL_PATH)
-
-print(f"Loaded {len(corpus)} corpus chunks.")
-print(
-    f"Loaded {len(evaluation)} evaluation questions."
+corpus = load_jsonl(
+    CORPUS_PATH
 )
 
+evaluation = load_jsonl_records(
+    EVAL_PATH
+)
+
+
+print(
+    f"Loaded {len(corpus)} corpus chunks."
+)
+
+print(
+    f"Loaded {len(evaluation)} "
+    f"evaluation questions."
+)
+
+
 print("\nBuilding retriever...")
-retriever = SemanticRetriever(corpus)
+
+retriever = SemanticRetriever(
+    corpus
+)
+
 
 print("\nBuilding reranker...")
+
 reranker = CrossEncoderReranker()
 
 
@@ -69,9 +63,9 @@ answerable_total = 0
 
 hit_at_1 = 0
 hit_at_3 = 0
-hit_at_10 = 0
+hit_at_5 = 0
 
-reciprocal_rank_sum = 0.0
+mrr_at_5_sum = 0.0
 
 hybrid_correct = 0
 
@@ -81,15 +75,29 @@ ood_correct = 0
 
 for example in evaluation:
 
-    question = example["question"]
-    question_type = example["type"]
+    question = example[
+        "question"
+    ]
 
-    print("\n" + "=" * 100)
+    question_type = example[
+        "type"
+    ]
+
     print(
-        f"{example['id']} | {question_type}"
+        "\n"
+        + "=" * 100
     )
+
+    print(
+        f"{example['id']} | "
+        f"{question_type}"
+    )
+
     print(question)
-    print("=" * 100)
+
+    print(
+        "=" * 100
+    )
 
     candidates = retriever.search(
         question,
@@ -97,17 +105,31 @@ for example in evaluation:
     )
 
     if not candidates:
-        print("No candidates returned.")
+
+        print(
+            "No candidates returned."
+        )
+
         continue
 
-    faiss_top_score = candidates[0]["score"]
+    faiss_top_score = (
+        candidates[0]["score"]
+    )
 
     print(
         f"FAISS top score: "
         f"{faiss_top_score:.4f}"
     )
 
-    if question_type == "out_of_domain":
+
+    # -------------------------------------------------------------
+    # Out-of-domain evaluation
+    # -------------------------------------------------------------
+
+    if (
+        question_type
+        == "out_of_domain"
+    ):
 
         ood_total += 1
 
@@ -121,28 +143,28 @@ for example in evaluation:
 
         print(
             "OOD decision:",
-            "CORRECT REFUSAL"
-            if refused
-            else "FALSE ACCEPT",
+            (
+                "CORRECT REFUSAL"
+                if refused
+                else "FALSE ACCEPT"
+            ),
         )
 
         continue
 
+
+    # -------------------------------------------------------------
+    # Retrieval evaluation
+    # -------------------------------------------------------------
+
     answerable_total += 1
 
-    relevant_rank = None
-
-    for rank, item in enumerate(
-        candidates,
-        start=1,
-    ):
-
-        if item_is_relevant(
-            item,
+    relevant_rank = (
+        first_relevant_rank(
+            candidates,
             example,
-        ):
-            relevant_rank = rank
-            break
+        )
+    )
 
     print(
         "First relevant FAISS rank:",
@@ -157,12 +179,18 @@ for example in evaluation:
         if relevant_rank <= 3:
             hit_at_3 += 1
 
-        if relevant_rank <= 10:
-            hit_at_10 += 1
+        if relevant_rank <= 5:
+            hit_at_5 += 1
 
-        reciprocal_rank_sum += (
-            1.0 / relevant_rank
-        )
+            mrr_at_5_sum += (
+                1.0
+                / relevant_rank
+            )
+
+
+    # -------------------------------------------------------------
+    # Hybrid reranking evaluation
+    # -------------------------------------------------------------
 
     reranked = reranker.rerank(
         question,
@@ -172,29 +200,48 @@ for example in evaluation:
 
     if reranked:
 
-        reranker_top = reranked[0]
+        reranker_top = (
+            reranked[0]
+        )
 
         if (
-            reranker_top["rerank_score"]
+            reranker_top[
+                "rerank_score"
+            ]
             > RERANKER_CONFIDENCE_THRESHOLD
         ):
-            selected = reranker_top
-            method = "cross_encoder"
+
+            selected = (
+                reranker_top
+            )
+
+            method = (
+                "cross_encoder"
+            )
 
         else:
-            selected = candidates[0]
-            method = "faiss_fallback"
 
-        correct_selected = item_is_relevant(
-            selected,
-            example,
+            selected = (
+                candidates[0]
+            )
+
+            method = (
+                "faiss_fallback"
+            )
+
+        correct_selected = (
+            item_is_relevant(
+                selected,
+                example,
+            )
         )
 
         if correct_selected:
             hybrid_correct += 1
 
         print(
-            f"Hybrid selection: {method}"
+            "Hybrid selection:",
+            method,
         )
 
         print(
@@ -203,9 +250,23 @@ for example in evaluation:
         )
 
 
-print("\n" + "=" * 100)
-print("RETRIEVAL SUMMARY")
-print("=" * 100)
+# -----------------------------------------------------------------
+# Final summary
+# -----------------------------------------------------------------
+
+print(
+    "\n"
+    + "=" * 100
+)
+
+print(
+    "SCIENTIFIC RETRIEVAL SUMMARY"
+)
+
+print(
+    "=" * 100
+)
+
 
 if answerable_total:
 
@@ -225,23 +286,24 @@ if answerable_total:
     )
 
     print(
-        f"Hit@10: "
-        f"{hit_at_10 / answerable_total:.3f}"
+        f"Hit@5: "
+        f"{hit_at_5 / answerable_total:.3f}"
     )
 
     print(
-        f"MRR@10: "
-        f"{reciprocal_rank_sum / answerable_total:.3f}"
+        f"MRR@5: "
+        f"{mrr_at_5_sum / answerable_total:.3f}"
     )
 
     print(
-        f"Hybrid selection accuracy: "
+        "Hybrid selection accuracy: "
         f"{hybrid_correct / answerable_total:.3f}"
     )
+
 
 if ood_total:
 
     print(
-        f"OOD refusal accuracy: "
+        "OOD refusal accuracy: "
         f"{ood_correct / ood_total:.3f}"
     )

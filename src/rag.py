@@ -11,7 +11,7 @@ class RAGSystem:
         relevance_threshold: float = 0.30,
         use_reranker: bool = True,
         reranker_confidence_threshold: float = 0.0,
-        candidate_pool: int = 10,
+        candidate_pool: int = 5,
     ):
         print("Building semantic retriever...")
         self.retriever = SemanticRetriever(records)
