@@ -481,12 +481,26 @@ The application provides:
 - Retrieved scientific passage
 - Evaluation metrics
 
+---
+
+### Demo Screenshots
+
+#### Grounded scientific answer
+
+The application retrieves scientific evidence, generates a concise answer, and exposes the source passage used by the RAG system.
+
 **Example**
 
 - Question: *What problem is the AC + DC heating strategy designed to prevent?*
 - Answer: *lithium-ion deposition*
 
-The interface also exposes the research article, page, and supporting passage used by the RAG.
+![Scientific RAG grounded answer](images/scientific_rag_demo.png)
+
+#### Out-of-domain refusal
+
+When the retrieved evidence is not sufficiently relevant, the system refuses the question instead of generating an unsupported answer.
+
+![Scientific RAG out-of-domain refusal](images/scientific_rag_ood.png)
 
 ---
 
