@@ -372,7 +372,7 @@ Semantic-search-chatbot/
 Clone the repository:
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/Hassna-elbousiydy/Semantic-search-chatbot.git
 cd Semantic-search-chatbot
 ```
 
